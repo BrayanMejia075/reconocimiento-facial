@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FaceID — Reconocimiento Facial</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+  <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.12.94/build/spline-viewer.js"></script>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.AOS) {
+        AOS.init({ once: true, duration: 700, easing: 'ease-out-cubic' });
+      }
+    });
+  </script>
+
+  <style>
+    :root {
+      --bg: #08101d;
+      --bg2: #0d172a;
+      --panel: rgba(14, 20, 34, .88);
+      --panel2: rgba(10, 15, 24, .92);
+      --line: rgba(255, 255, 255, .08);
+      --text: #edf2f7;
+      --muted: #95a3b8;
+      --accent: #7dd3fc;
+      --accent2: #a78bfa;
+      --good: #34d399;
+      --bad: #fb7185;
+      --warn: #fbbf24;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .42);
+      --radius: 26px;
+      --mono: 'DM Mono', monospace;
+      --head: 'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      font-family: var(--head);
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(125, 211, 252, .12), transparent 26%),
+        radial-gradient(circle at 88% 10%, rgba(167, 139, 250, .11), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(52, 211, 153, .06), transparent 34%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+      background-size: 44px 44px;
+      opacity: .26;
+      z-index: 0;
+    }
+
+    /* ─── INTRO ─────────────────────────────────── */
+    .intro {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 25% 20%, rgba(125, 211, 252, .10), transparent 20%),
+        radial-gradient(circle at 75% 25%, rgba(167, 139, 250, .10), transparent 20%),
+        radial-gradient(circle at 50% 70%, rgba(52, 211, 153, .08), transparent 26%),
+        linear-gradient(180deg, #050816 0%, #07111f 100%);
+      transition: opacity .8s ease, visibility .8s ease;
+    }
+
+    .intro.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    .intro-inner {
+      text-align: center;
+      display: grid;
+      justify-items: center;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .intro-logo {
+      width: 120px;
+      height: 120px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .intro-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(125, 211, 252, .35);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .03) inset, 0 0 40px rgba(125, 211, 252, .12);
+      animation: spin 6s linear infinite;
+    }
+
+    .intro-ring::before,
+    .intro-ring::after {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      border: 1px dashed rgba(255, 255, 255, .08);
+    }
+
+    .intro-core {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 40px rgba(125, 211, 252, .35);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .intro-title {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -.04em;
+      background: linear-gradient(90deg, #fff, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .intro-sub {
+      color: rgba(255, 255, 255, .72);
+      font-family: var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-size: .75rem;
+    }
+
+    .intro-bars {
+      width: min(320px, 76vw);
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .intro-bar {
+      flex: 1;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .intro-bar::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-120%);
+      background: linear-gradient(90deg, transparent, rgba(125, 211, 252, .75), rgba(255, 255, 255, .9), rgba(167, 139, 250, .65), transparent);
+      animation: sweep-bar 1.4s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+    @keyframes sweep-bar { to { transform: translateX(120%); } }
+
+    /* ─── LAYOUT ─────────────────────────────────── */
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px 18px 36px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: 22px;
+      background: rgba(10, 14, 24, .76);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(125, 211, 252, .16), rgba(167, 139, 250, .16));
+      border: 1px solid rgba(255, 255, 255, .08);
+    }
+    .brand-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -.03em; }
+    .brand-title span { color: var(--accent); }
+    .brand-subtitle { margin-top: 2px; font-size: .76rem; color: var(--muted); font-family: var(--mono); }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      border-radius: 999px;
+      font-size: .78rem;
+      color: #d7e3f0;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .03);
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 12px rgba(52, 211, 153, .75);
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+    .hero {
+      margin: 28px auto 18px;
+      max-width: 860px;
+      text-align: center;
+      padding: 12px 10px 0;
+    }
+    .hero-tag {
+      font-family: var(--mono);
+      color: var(--accent);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      font-size: .72rem;
+      margin-bottom: 14px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1.02;
+      letter-spacing: -.05em;
+      margin-bottom: 12px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      color: var(--muted);
+      font-size: .97rem;
+      line-height: 1.75;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 24px auto 20px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .03);
+      color: #cbd5e1;
+      padding: 11px 18px;
+      border-radius: 999px;
+      font-family: var(--head);
+      font-weight: 700;
+      cursor: pointer;
+      transition: .22s ease;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(125, 211, 252, .18), rgba(167, 139, 250, .18));
+      color: white;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .24);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      background: rgba(255, 255, 255, .02);
+    }
+    .card-head h2 { font-size: 1rem; margin-bottom: 4px; }
+    .card-head p { color: var(--muted); font-size: .84rem; font-family: var(--mono); }
+    .card-badge {
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--accent);
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: rgba(125, 211, 252, .08);
+      border: 1px solid rgba(125, 211, 252, .16);
+      white-space: nowrap;
+    }
+    .card-body { padding: 22px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: 18px;
+    }
+    @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
+
+    .camera-shell {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(125, 211, 252, .10), transparent 42%),
+        linear-gradient(180deg, rgba(8, 12, 18, .96), rgba(6, 10, 15, .99));
+      aspect-ratio: 4 / 3;
+      border: 1px solid rgba(255, 255, 255, .08);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .32);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scaleX(-1);
+      filter: saturate(.96) contrast(1.03);
+    }
+
+    canvas.overlay-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      mix-blend-mode: normal;
+    }
+
+    .cam-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .scan-ring {
+      position: absolute;
+      inset: 10%;
+      border-radius: 30px;
+      border: 1px solid rgba(125, 211, 252, .15);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .02);
+    }
+    .scan-ring::before,
+    .scan-ring::after {
+      content: "";
+      position: absolute;
+      inset: -7px;
+      border-radius: 34px;
+      border: 1px dashed rgba(255, 255, 255, .08);
+    }
+    .scan-ring::after { animation: spin 10s linear infinite; }
+
+    .scan-line {
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      top: 16%;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(125, 211, 252, .92), transparent);
+      animation: sweep-scan 3.2s ease-in-out infinite;
+      opacity: .75;
+    }
+    @keyframes sweep-scan {
+      0% { transform: translateY(0); opacity: 0; }
+      15% { opacity: .85; }
+      50% { opacity: 1; }
+      85% { opacity: .85; }
+      100% { transform: translateY(255px); opacity: 0; }
+    }
+
+    .scan-label {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      font-size: .68rem;
+      letter-spacing: .12em;
+      font-family: var(--mono);
+      background: rgba(10, 14, 24, .68);
+      border: 1px solid rgba(255, 255, 255, .08);
+      color: #dbeafe;
+    }
+
+    .scan-status {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      padding: 11px 14px;
+      border-radius: 14px;
+      background: rgba(10, 14, 24, .72);
+      border: 1px solid rgba(255, 255, 255, .08);
+      backdrop-filter: blur(12px);
+      font-family: var(--mono);
+      font-size: .74rem;
+      color: #dbeafe;
+    }
+
+    .form-side { display: flex; flex-direction: column; gap: 14px; }
+
+    .field label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: .74rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #a7b3c5;
+      font-family: var(--mono);
+    }
+
+    .field input {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .03);
+      padding: 14px 16px;
+      outline: none;
+      color: var(--text);
+      font: inherit;
+    }
+    .field input:focus {
+      border-color: rgba(125, 211, 252, .35);
+      box-shadow: 0 0 0 4px rgba(125, 211, 252, .08);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 16px;
+      padding: 13px 16px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #06111f;
+      box-shadow: 0 12px 30px rgba(125, 211, 252, .16);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    .btn:disabled { opacity: .55; cursor: wait; }
+
+    .users-box {
+      margin-top: 8px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid var(--line);
+    }
+    .users-title {
+      font-size: .76rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #a7b3c5;
+      font-family: var(--mono);
+      margin-bottom: 10px;
+    }
+    .users-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+    }
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .03);
+      color: #e2e8f0;
+      font-family: var(--mono);
+      font-size: .76rem;
+    }
+    .user-delete {
+      border: none;
+      background: rgba(251, 113, 133, .12);
+      color: #fda4af;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .result-panel {
+      display: none;
+      margin-top: 16px;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(12, 18, 30, .92);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      animation: reveal .35s ease both;
+    }
+    .result-panel.show { display: block; }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-family: var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .result-badge.success {
+      background: rgba(52, 211, 153, .08);
+      color: #86efac;
+      border: 1px solid rgba(52, 211, 153, .16);
+    }
+    .result-badge.error {
+      background: rgba(251, 113, 133, .08);
+      color: #fda4af;
+      border: 1px solid rgba(251, 113, 133, .16);
+    }
+    .result-badge.beta {
+      background: rgba(251, 191, 36, .08);
+      color: #fde68a;
+      border: 1px solid rgba(251, 191, 36, .16);
+    }
+
+    .result-panel h3 { font-size: 1.25rem; margin-bottom: 8px; }
+    .result-panel p { color: #cbd5e1; line-height: 1.7; font-size: .95rem; }
+    .result-note {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.7;
+    }
+
+    .dev-panel {
+      border-radius: 22px;
+      padding: 18px;
+      background:
+        radial-gradient(circle at top left, rgba(125, 211, 252, .08), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(167, 139, 250, .08), transparent 35%),
+        rgba(12, 18, 30, .92);
+      border: 1px solid rgba(255, 255, 255, .08);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .24);
+    }
+
+    .hint {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.6;
+      font-family: var(--mono);
+    }
+
+    .toast-container {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: min(360px, calc(100vw - 32px));
+    }
+    .toast {
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(10, 14, 24, .92);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      font-size: .9rem;
+      line-height: 1.5;
+    }
+    .toast.success { border-color: rgba(52, 211, 153, .22); }
+    .toast.error { border-color: rgba(251, 113, 133, .22); }
+    .toast.info { border-color: rgba(125, 211, 252, .22); }
+
+    footer {
+      margin-top: 22px;
+      text-align: center;
+      color: var(--muted);
+      font-size: .78rem;
+      font-family: var(--mono);
+      padding: 14px 0 2px;
+    }
+
+    @media (max-width: 720px) {
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .card-head { flex-direction: column; }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       MODAL PRINCIPAL — ROBOT FUERA DEL CARD, MÁS GRANDE
+       Entrada + salida animada, blur limpio, card más alto
+    ══════════════════════════════════════════════════════════ */
+
+    .dev-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px 34px;
+      opacity: 0;
+    }
+
+    .dev-modal.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    .dev-modal__backdrop {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(125,211,252,.16), transparent 35%),
+        radial-gradient(circle at 70% 80%, rgba(167,139,250,.16), transparent 35%),
+        rgba(4,7,14,.74);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      z-index: 0;
+      animation: backdropIn .6s cubic-bezier(.16,1,.3,1) both;
+    }
+
+    @keyframes backdropIn {
+      from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+      }
+      to {
+        opacity: 1;
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+      }
+    }
+
+    @keyframes backdropOut {
+      from {
+        opacity: 1;
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+      }
+      to {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+      }
+    }
+
+    .dev-modal__robot {
+      position: absolute;
+      left: 50%;
+      top: -4vh;
+      transform: translateX(-50%);
+      width: min(900px, 100vw);
+      height: 82vh;
+      z-index: 1;
+      pointer-events: none;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .dev-modal.show .dev-modal__robot {
+      animation: robotIn 1s cubic-bezier(.16,1,.3,1) both;
+    }
+
+    @keyframes robotIn {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(90px) scale(.82);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
+    }
+
+    @keyframes robotOut {
+      from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-120px) scale(.88);
+      }
+    }
+
+    .dev-modal__robot spline-viewer {
+      width: 100%;
+      height: 100%;
+      opacity: .96;
+      filter: saturate(.98) brightness(.96);
+    }
+
+    .dev-modal__robot::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 45%;
+      background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(4,7,14,.2) 40%,
+        rgba(4,7,14,.82) 100%
+      );
+      pointer-events: none;
+    }
+
+    .dev-modal__card {
+      position: relative;
+      z-index: 2;
+      width: min(700px, 100%);
+      border-radius: 34px;
+      padding: 42px 34px 34px;
+      margin-top: auto;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(16,22,38,.88),
+          rgba(7,11,20,.96)
+        );
+      border: 1px solid rgba(255,255,255,.1);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      box-shadow:
+        0 -20px 60px rgba(0,0,0,.5),
+        0 30px 90px rgba(0,0,0,.6),
+        inset 0 1px 0 rgba(255,255,255,.05);
+      overflow: hidden;
+      transform: translateY(-65px);
+    }
+
+    .dev-modal.show .dev-modal__card {
+      animation: slotIn .9s cubic-bezier(.16,1,.3,1) both;
+    }
+
+    @keyframes slotIn {
+      from {
+        opacity: 0;
+        transform: translateY(120px) scale(.92);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(-65px) scale(1);
+      }
+    }
+
+    @keyframes slotOut {
+      from {
+        opacity: 1;
+        transform: translateY(-65px) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(160px) scale(.9);
+      }
+    }
+
+    .dev-modal.closing .dev-modal__backdrop {
+      animation: backdropOut .55s ease forwards;
+    }
+
+    .dev-modal.closing .dev-modal__robot {
+      animation: robotOut .7s cubic-bezier(.7,0,.84,0) forwards;
+    }
+
+    .dev-modal.closing .dev-modal__card {
+      animation: slotOut .65s cubic-bezier(.7,0,.84,0) forwards;
+    }
+
+    .dev-modal__orb {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .dev-modal__orb--one {
+      width: 240px;
+      height: 240px;
+      right: -90px;
+      top: -90px;
+      background:
+        radial-gradient(circle,
+          rgba(125,211,252,.2),
+          transparent 65%);
+    }
+
+    .dev-modal__orb--two {
+      width: 180px;
+      height: 180px;
+      left: -70px;
+      bottom: -70px;
+      background:
+        radial-gradient(circle,
+          rgba(167,139,250,.16),
+          transparent 65%);
+    }
+
+    .dev-modal__card > *:not(.dev-modal__orb) {
+      position: relative;
+      z-index: 2;
+    }
+
+    .dev-modal__close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(255, 255, 255, .05);
+      color: white;
+      cursor: pointer;
+      font-size: 1.25rem;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+      z-index: 10;
+    }
+
+    .dev-modal__close:hover {
+      transform: scale(1.06);
+      background: rgba(255, 255, 255, .09);
+      border-color: rgba(125, 211, 252, .28);
+    }
+
+    .dev-modal__eyebrow {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #7dd3fc;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(125, 211, 252, .08);
+      border: 1px solid rgba(125, 211, 252, .16);
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+
+    .dev-modal h2 {
+      position: relative;
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      line-height: 1.05;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      margin-bottom: 14px;
+      background: linear-gradient(90deg, #ffffff, #7dd3fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .dev-modal__text {
+      position: relative;
+      font-size: .98rem;
+      line-height: 1.75;
+      color: rgba(255, 255, 255, .72);
+      max-width: 46ch;
+    }
+
+    .dev-modal__meta {
+      position: relative;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .dev-modal__chip {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .09);
+      backdrop-filter: blur(12px);
+      color: #dbeafe;
+      font-family: var(--mono);
+      font-size: .74rem;
+      transition: .28s ease;
+    }
+
+    .dev-modal__chip:hover {
+      transform: translateY(-2px);
+      border-color: rgba(125, 211, 252, .28);
+    }
+
+    .dev-modal__footer {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .dev-modal .btn-primary {
+      background: linear-gradient(135deg, #7dd3fc, #60a5fa);
+      box-shadow: 0 10px 30px rgba(96, 165, 250, .28);
+      color: #06111f;
+      font-weight: 800;
+    }
+
+    .dev-modal .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 40px rgba(96, 165, 250, .38);
+    }
+
+    .dev-modal__card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 15%;
+      right: 15%;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(125, 211, 252, .55),
+        rgba(167, 139, 250, .45),
+        transparent
+      );
+      z-index: 5;
+    }
+
+    @media (max-width: 640px) {
+      .dev-modal {
+        padding: 0 12px 24px;
+      }
+
+      .dev-modal__robot {
+        width: 108vw;
+        height: 72vh;
+        top: -2vh;
+      }
+
+      .dev-modal__card {
+        width: 100%;
+        padding: 30px 22px 24px;
+        border-radius: 28px;
+        transform: translateY(-50px);
+      }
+
+      .dev-modal.show .dev-modal__card {
+        animation: slotInMobile .9s cubic-bezier(.16,1,.3,1) both;
+      }
+
+      @keyframes slotInMobile {
+        from {
+          opacity: 0;
+          transform: translateY(120px) scale(.92);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(-50px) scale(1);
+        }
+      }
+
+      @keyframes slotOutMobile {
+        from {
+          opacity: 1;
+          transform: translateY(-50px) scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(120px) scale(.9);
+        }
+      }
+
+      .dev-modal.closing .dev-modal__card {
+        animation: slotOutMobile .65s cubic-bezier(.7,0,.84,0) forwards;
+      }
+
+      .dev-modal__footer {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ─── INTRO SPLASH ─────────────────────────────────────── -->
+  <div class="intro" id="intro">
+    <div class="intro-inner">
+      <div class="intro-logo" aria-hidden="true">
+        <div class="intro-ring"></div>
+        <div class="intro-core"></div>
+      </div>
+      <div class="intro-title">FaceID</div>
+      <div class="intro-sub">Inicializando sistema biométrico...</div>
+      <div class="intro-bars" aria-hidden="true">
+        <span class="intro-bar"></span>
+        <span class="intro-bar"></span>
+        <span class="intro-bar"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── APP ──────────────────────────────────────────────── -->
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7dd3fc"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="8"></circle>
+            <path d="M8 12h8"></path>
+            <path d="M12 8v8"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">Face<span>ID</span></div>
+          <div class="brand-subtitle">Reconocimiento facial · app preview</div>
+        </div>
+      </div>
+      <div class="status-pill"><span class="dot"></span> sistema activo</div>
+    </div>
+
+    <section class="hero">
+      <div class="hero-tag">// biometría facial</div>
+      <h1>Identidad verificada <em>en tiempo real</em></h1>
+      <p>
+        Registro, login y administración local de rostros con interfaz premium,
+        intro animada y biometría ligera para evitar lag.
+      </p>
+    </section>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tabLogin" onclick="showTab('login', this)">Iniciar sesión</button>
+      <button class="tab-btn" id="tabRegister" onclick="showTab('register', this)">Registrar</button>
+      <button class="tab-btn" id="tabUsers" onclick="showTab('users', this)">Usuarios</button>
+    </div>
+
+    <!-- ─── PANEL LOGIN ─── -->
+    <div class="panel active" id="panel-login">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Inicio de sesión facial</h2>
+            <p>Analiza el rostro y responde con una validación clara</p>
+          </div>
+          <div class="card-badge">login biométrico</div>
+        </div>
+        <div class="card-body">
+          <div class="grid">
+            <div>
+              <div class="camera-shell" id="cameraShellLogin">
+                <video id="videoLogin" autoplay playsinline muted></video>
+                <canvas id="overlayLogin" class="overlay-canvas"></canvas>
+                <div class="cam-overlay">
+                  <div class="scan-ring"></div>
+                  <div class="scan-line"></div>
+                  <div class="scan-label">● live</div>
+                  <div class="scan-status" id="loginStatus">Listo para analizar...</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-side">
+              <button class="btn btn-primary" onclick="intentarLogin()">
+                Verificar identidad
+              </button>
+              <button class="btn btn-secondary" onclick="restartLoginCamera()">
+                Reiniciar cámara
+              </button>
+              <div class="hint">
+                El mensaje de desarrollo solo aparece cuando el rostro sí fue reconocido.
+              </div>
+              <div class="result-panel" id="loginResult"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── PANEL REGISTRO ─── -->
+    <div class="panel" id="panel-register">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Registro local de rostros</h2>
+            <p>Captura la cara y almacénala como referencia para el login</p>
+          </div>
+          <div class="card-badge">registro local</div>
+        </div>
+        <div class="card-body">
+          <div class="grid">
+            <div>
+              <div class="camera-shell" id="cameraShellRegister">
+                <video id="videoRegister" autoplay playsinline muted></video>
+                <canvas id="overlayRegister" class="overlay-canvas"></canvas>
+                <div class="cam-overlay">
+                  <div class="scan-ring"></div>
+                  <div class="scan-line"></div>
+                  <div class="scan-label">● live</div>
+                  <div class="scan-status" id="registerStatus">Listo para registrar...</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-side">
+              <div class="field">
+                <label for="nameInput">Nombre completo</label>
+                <input type="text" id="nameInput" placeholder="Ej. Brayan" autocomplete="off" />
+              </div>
+              <button class="btn btn-primary" id="registerBtn" onclick="capturarYRegistrar()">
+                Capturar y registrar
+              </button>
+              <button class="btn btn-secondary" onclick="restartRegisterCamera()">
+                Reiniciar cámara
+              </button>
+              <div class="hint">
+                El sistema guarda el rostro recortado en <strong>registered_faces/</strong>.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── PANEL USUARIOS ─── -->
+    <div class="panel" id="panel-users">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Rostros registrados</h2>
+            <p>Eliminación individual o limpieza total de la base local</p>
+          </div>
+          <div class="card-badge">administración local</div>
+        </div>
+        <div class="card-body">
+          <div class="users-box" style="margin-top:0;">
+            <div class="users-title">Usuarios cargados</div>
+            <div class="users-list" id="usersList">
+              <span class="empty-msg">Cargando...</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+            <button class="btn btn-secondary" onclick="loadUsers()">Actualizar lista</button>
+            <button class="btn btn-secondary" onclick="clearUsers()">Eliminar todos</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>FaceID System · Powered by DeepFace + OpenCV</footer>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ─── MODAL DE AUTENTICACIÓN VERIFICADA ───────────────── -->
+  <div class="dev-modal" id="devModal" aria-hidden="true">
+    <div class="dev-modal__backdrop" onclick="closeDevModal()"></div>
+
+    <div class="dev-modal__robot" aria-hidden="true">
+      <spline-viewer
+        render-on-demand="true"
+        loading-anim-type="spinner-small-dark"
+        url="https://prod.spline.design/gaDYDpXsvomqwOOj/scene.splinecode">
+      </spline-viewer>
+    </div>
+
+    <section
+      class="dev-modal__card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="devModalTitle"
+      onclick="event.stopPropagation()"
+    >
+      <button
+        class="dev-modal__close"
+        type="button"
+        onclick="closeDevModal()"
+        aria-label="Cerrar"
+      >×</button>
+
+      <div class="dev-modal__orb dev-modal__orb--one"></div>
+      <div class="dev-modal__orb dev-modal__orb--two"></div>
+
+      <div class="dev-modal__eyebrow">
+        <span>●</span> Sistema verificado
+      </div>
+
+      <h2 id="devModalTitle">Autenticación validada</h2>
+
+      <p class="dev-modal__text" id="devModalText">
+        El rostro fue reconocido correctamente. El sistema aún está en proceso de desarrollo.
+      </p>
+
+      <div class="dev-modal__meta">
+        <div class="dev-modal__chip">Biometría activa</div>
+        <div class="dev-modal__chip" id="devModalScore">Score: 0.00</div>
+      </div>
+
+      <div class="dev-modal__footer">
+        <button class="btn btn-primary" type="button" onclick="closeDevModal()">
+          Continuar
+        </button>
+        <button class="btn btn-secondary" type="button" onclick="goHome()">
+          Volver al inicio
+        </button>
+      </div>
+    </section>
+  </div><!-- /dev-modal -->
+
+  <script>
+    /* ── Estado global ── */
+    const intro = document.getElementById('intro');
+    const panels = {
+      login: document.getElementById('panel-login'),
+      register: document.getElementById('panel-register'),
+      users: document.getElementById('panel-users')
+    };
+    const tabs = {
+      login: document.getElementById('tabLogin'),
+      register: document.getElementById('tabRegister'),
+      users: document.getElementById('tabUsers')
+    };
+    const videoLogin = document.getElementById('videoLogin');
+    const videoRegister = document.getElementById('videoRegister');
+    const overlayLogin = document.getElementById('overlayLogin');
+    const overlayRegister = document.getElementById('overlayRegister');
+    const loginShell = document.getElementById('cameraShellLogin');
+    const registerShell = document.getElementById('cameraShellRegister');
+    const loginStatus = document.getElementById('loginStatus');
+    const registerStatus = document.getElementById('registerStatus');
+    const loginResult = document.getElementById('loginResult');
+
+    let activeMode = 'login';
+    let streamLogin = null, streamRegister = null;
+    let faceDetectionLogin = null, faceDetectionRegister = null;
+    let cameraLogin = null, cameraRegister = null;
+    let loginBusy = false, registerBusy = false;
+    let lastLoginFrame = 0, lastRegisterFrame = 0;
+
+    let modalClosing = false;
+    let modalCloseTimer = null;
+
+    /* ── Toasts ── */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity .25s ease';
+        setTimeout(() => toast.remove(), 250);
+      }, 3200);
+    }
+
+    /* ── Tabs ── */
+    function showTab(mode, btn) {
+      activeMode = mode;
+      Object.values(panels).forEach(p => p.classList.remove('active'));
+      Object.values(tabs).forEach(b => b.classList.remove('active'));
+      panels[mode].classList.add('active');
+      btn.classList.add('active');
+      stopMode('login');
+      stopMode('register');
+      if (mode === 'login') startLoginCamera();
+      if (mode === 'register') startRegisterCamera();
+      if (mode === 'users') loadUsers();
+    }
+
+    /* ── Cámara ── */
+    function stopStream(stream) {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+    }
+
+    function stopMode(mode) {
+      if (mode === 'login') {
+        stopStream(streamLogin);
+        streamLogin = null;
+        loginBusy = false;
+        if (cameraLogin && cameraLogin.stop) cameraLogin.stop();
+        cameraLogin = null;
+      }
+      if (mode === 'register') {
+        stopStream(streamRegister);
+        streamRegister = null;
+        registerBusy = false;
+        if (cameraRegister && cameraRegister.stop) cameraRegister.stop();
+        cameraRegister = null;
+      }
+    }
+
+    async function initCamera(videoEl) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 960 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
+          audio: false
+        });
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        return stream;
+      } catch (err) {
+        showToast('No se pudo acceder a la cámara: ' + err.message, 'error');
+        return null;
+      }
+    }
+
+    function resizeCanvas(canvas, video) {
+      const width = video.videoWidth || 960;
+      const height = video.videoHeight || 720;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      return { width, height };
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + w, y, x + w, y + h, radius);
+      ctx.arcTo(x + w, y + h, x, y + h, radius);
+      ctx.arcTo(x, y + h, x, y, radius);
+      ctx.arcTo(x, y, x + w, y, radius);
+      ctx.closePath();
+    }
+
+    function drawIntroOverlay(canvas, video) {
+      const ctx = canvas.getContext('2d');
+      const { width, height } = resizeCanvas(canvas, video);
+      ctx.clearRect(0, 0, width, height);
+
+      const cx = width * 0.5;
+      const cy = height * 0.47;
+      const rx = Math.min(width, height) * 0.18;
+      const ry = rx * 1.2;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(125,211,252,.18)';
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([10, 10]);
+      roundRect(ctx, cx - rx * 1.35, cy - ry * 1.25, rx * 2.7, ry * 2.5, 26);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      for (let i = 0; i < 14; i++) {
+        const a = (Math.PI * 2 * i) / 14 + performance.now() / 2200;
+        const px = cx + Math.cos(a) * rx * 1.15;
+        const py = cy + Math.sin(a) * ry * 1.15;
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(125,211,252,.28)';
+        ctx.arc(px, py, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawFaceOverlay(canvas, results, video, statusEl, theme = 'login') {
+      const ctx = canvas.getContext('2d');
+      const { width, height } = resizeCanvas(canvas, video);
+      ctx.clearRect(0, 0, width, height);
+
+      const detections = results?.detections || [];
+      if (!detections.length) {
+        statusEl.textContent = theme === 'login' ? 'Alinea tu rostro dentro del marco.' : 'Coloca tu rostro para registrar.';
+        drawIntroOverlay(canvas, video);
+        loginShell && loginShell.classList.remove('scanning');
+        registerShell && registerShell.classList.remove('scanning');
+        return false;
+      }
+
+      const detection = detections[0];
+      const boxData = detection.boundingBox || detection.locationData?.relativeBoundingBox;
+      if (!boxData) return false;
+
+      const x = boxData.xCenter ? (boxData.xCenter - boxData.width / 2) : (boxData.xMin * width);
+      const y = boxData.yCenter ? (boxData.yCenter - boxData.height / 2) : (boxData.yMin * height);
+      const w = boxData.width * (boxData.xCenter ? 1 : width);
+      const h = boxData.height * (boxData.yCenter ? 1 : height);
+
+      const accent = theme === 'login' ? 'rgba(125,211,252,.92)' : 'rgba(167,139,250,.92)';
+      const accentSoft = theme === 'login' ? 'rgba(125,211,252,.48)' : 'rgba(167,139,250,.48)';
+      const now = performance.now();
+
+      statusEl.textContent = theme === 'login'
+        ? 'Rostro detectado · listo para verificar'
+        : 'Rostro detectado · listo para registrar';
+
+      if (theme === 'login') loginShell.classList.add('scanning');
+      if (theme === 'register') registerShell.classList.add('scanning');
+
+      ctx.save();
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 1.7;
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 12;
+      roundRect(ctx, x, y, w, h, 24);
+      ctx.stroke();
+      ctx.restore();
+
+      const c = Math.min(26, w * 0.12);
+      ctx.save();
+      ctx.strokeStyle = accentSoft;
+      ctx.lineWidth = 3;
+
+      ctx.beginPath();
+      ctx.moveTo(x, y + c);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x + c, y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x + w - c, y);
+      ctx.lineTo(x + w, y);
+      ctx.lineTo(x + w, y + c);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x, y + h - c);
+      ctx.lineTo(x, y + h);
+      ctx.lineTo(x + c, y + h);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x + w - c, y + h);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x + w, y + h - c);
+      ctx.stroke();
+      ctx.restore();
+
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+
+      const keypoints = detection.keypoints || detection.locationData?.relativeKeypoints || [];
+      if (keypoints.length) {
+        keypoints.forEach((kp, i) => {
+          const px = kp.x * (kp.x <= 1 ? width : 1);
+          const py = kp.y * (kp.y <= 1 ? height : 1);
+          ctx.beginPath();
+          ctx.fillStyle = i < 2 ? accent : accentSoft;
+          ctx.shadowColor = ctx.fillStyle;
+          ctx.shadowBlur = 10;
+          ctx.arc(px, py, 2.6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      for (let i = 0; i < 18; i++) {
+        const ang = now / 1100 + i * (Math.PI * 2 / 18);
+        const px = cx + Math.cos(ang) * w * 0.52;
+        const py = cy + Math.sin(ang * 1.08) * h * 0.58;
+        ctx.beginPath();
+        ctx.fillStyle = accent;
+        ctx.shadowColor = accent;
+        ctx.shadowBlur = 12;
+        ctx.arc(px, py, 1.8 + Math.sin(ang * 1.7) * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const scanY = y + ((Math.sin(now / 650) + 1) / 2) * h;
+      ctx.save();
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 1.3;
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(x + 10, scanY);
+      ctx.lineTo(x + w - 10, scanY);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = accentSoft;
+      roundRect(ctx, x + 2, y + 2, w - 4, h - 4, 22);
+      ctx.fill();
+      ctx.restore();
+
+      return true;
+    }
+
+    function createFaceDetection(onResults) {
+      const fd = new FaceDetection({
+        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${f}`
+      });
+      fd.setOptions({
+        modelSelection: 0,
+        selfieMode: true,
+        minDetectionConfidence: 0.72
+      });
+      fd.onResults(onResults);
+      return fd;
+    }
+
+    async function startLoginCamera() {
+      streamLogin = await initCamera(videoLogin);
+      if (!streamLogin) return;
+      loginStatus.textContent = 'Cámara activa y lista.';
+      if (!faceDetectionLogin) {
+        faceDetectionLogin = createFaceDetection(results => {
+          if (activeMode !== 'login') return;
+          drawFaceOverlay(document.getElementById('overlayLogin'), results, videoLogin, loginStatus, 'login');
+        });
+      }
+      cameraLogin = new Camera(videoLogin, {
+        width: 960, height: 720,
+        onFrame: async () => {
+          if (activeMode !== 'login' || loginBusy) return;
+          const now = performance.now();
+          if (now - lastLoginFrame < 110) return;
+          lastLoginFrame = now;
+          loginBusy = true;
+          try {
+            await faceDetectionLogin.send({ image: videoLogin });
+          } finally {
+            loginBusy = false;
+          }
+        }
+      });
+      cameraLogin.start();
+    }
+
+    async function startRegisterCamera() {
+      streamRegister = await initCamera(videoRegister);
+      if (!streamRegister) return;
+      registerStatus.textContent = 'Cámara activa y lista.';
+      if (!faceDetectionRegister) {
+        faceDetectionRegister = createFaceDetection(results => {
+          if (activeMode !== 'register') return;
+          drawFaceOverlay(document.getElementById('overlayRegister'), results, videoRegister, registerStatus, 'register');
+        });
+      }
+      cameraRegister = new Camera(videoRegister, {
+        width: 960, height: 720,
+        onFrame: async () => {
+          if (activeMode !== 'register' || registerBusy) return;
+          const now = performance.now();
+          if (now - lastRegisterFrame < 110) return;
+          lastRegisterFrame = now;
+          registerBusy = true;
+          try {
+            await faceDetectionRegister.send({ image: videoRegister });
+          } finally {
+            registerBusy = false;
+          }
+        }
+      });
+      cameraRegister.start();
+    }
+
+    function restartLoginCamera() {
+      stopMode('login');
+      showToast('Cámara reiniciada.', 'success');
+      if (activeMode === 'login') startLoginCamera();
+    }
+
+    function restartRegisterCamera() {
+      stopMode('register');
+      showToast('Cámara reiniciada.', 'success');
+      if (activeMode === 'register') startRegisterCamera();
+    }
+
+    function captureFrame(videoEl) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoEl.videoWidth || 960;
+      canvas.height = videoEl.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.92);
+    }
+
+    async function capturarYRegistrar() {
+      const name = document.getElementById('nameInput').value.trim();
+      const btn = document.getElementById('registerBtn');
+      if (!name) {
+        showToast('Por favor ingresa un nombre.', 'error');
+        return;
+      }
+      if (!streamRegister) {
+        showToast('La cámara no está activa.', 'error');
+        return;
+      }
+      registerStatus.textContent = 'Procesando captura...';
+      btn.disabled = true;
+      btn.textContent = 'Procesando...';
+      const imageData = captureFrame(videoRegister);
+      try {
+        const res = await fetch('/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, image: imageData })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          document.getElementById('nameInput').value = '';
+          registerStatus.textContent = 'Registro completado.';
+          loadUsers();
+        } else {
+          showToast(data.message, 'error');
+          registerStatus.textContent = 'Listo para intentar de nuevo.';
+        }
+      } catch (e) {
+        showToast('Error de conexión con el servidor.', 'error');
+        registerStatus.textContent = 'Error de conexión.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Capturar y registrar';
+      }
+    }
+
+    async function intentarLogin() {
+      if (!streamLogin) {
+        showToast('La cámara no está activa.', 'error');
+        return;
+      }
+
+      loginResult.classList.remove('show');
+      loginResult.innerHTML = '';
+      loginStatus.textContent = 'Analizando biometría facial...';
+      showToast('Escaneando rostro...', 'info');
+
+      await new Promise(r => setTimeout(r, 1300));
+
+      const imageData = captureFrame(videoLogin);
+
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageData })
+        });
+        const data = await res.json();
+
+        if (data.recognized) {
+          loginStatus.textContent = 'Identidad verificada.';
+          showToast(data.message, 'success');
+          openDevModal(data.user, data.message, data.score);
+        } else {
+          loginStatus.textContent = 'Rostro no registrado.';
+          showToast(data.message, 'error');
+          loginResult.classList.add('show');
+          loginResult.innerHTML = `
+            <div class="dev-panel">
+              <div class="result-badge error">Rostro no registrado</div>
+              <h3>Acceso denegado</h3>
+              <p>${data.message}</p>
+              <div class="result-note">
+                Agrega ese rostro a <strong>registered_faces/</strong> para habilitar el acceso.
+              </div>
+            </div>`;
+        }
+      } catch (e) {
+        loginStatus.textContent = 'Error de conexión.';
+        showToast('Error de conexión.', 'error');
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/users');
+        const data = await res.json();
+        const list = document.getElementById('usersList');
+        if (!data.users || data.users.length === 0) {
+          list.innerHTML = `<span class="empty-msg">Aún no hay usuarios registrados.</span>`;
+          return;
+        }
+        list.innerHTML = data.users.map(name => `
+          <div class="user-item">
+            <span>${name}</span>
+            <button class="user-delete" title="Eliminar" onclick="deleteUser('${name.replace(/'/g, "\\'")}')">×</button>
+          </div>`).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function deleteUser(name) {
+      try {
+        const res = await fetch('/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        loadUsers();
+      } catch (e) {
+        showToast('No se pudo eliminar el rostro.', 'error');
+      }
+    }
+
+    async function clearUsers() {
+      try {
+        const res = await fetch('/clear-users', { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        loadUsers();
+      } catch (e) {
+        showToast('No se pudieron eliminar los rostros.', 'error');
+      }
+    }
+
+    /* ── Modal ── */
+    function openDevModal(user, message, score) {
+      if (modalCloseTimer) {
+        clearTimeout(modalCloseTimer);
+        modalCloseTimer = null;
+      }
+
+      const modal = document.getElementById('devModal');
+      const text = document.getElementById('devModalText');
+      const scoreEl = document.getElementById('devModalScore');
+
+      text.textContent = message;
+      scoreEl.textContent = `Score: ${Number(score || 0).toFixed(2)} · ${user || 'N/D'}`;
+
+      modal.classList.remove('closing');
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDevModal() {
+      const modal = document.getElementById('devModal');
+      if (!modal.classList.contains('show') || modalClosing) return;
+
+      modalClosing = true;
+      modal.classList.add('closing');
+
+      modalCloseTimer = setTimeout(() => {
+        modal.classList.remove('show');
+        modal.classList.remove('closing');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        modalClosing = false;
+        modalCloseTimer = null;
+      }, 700);
+    }
+
+    function goHome() {
+      closeDevModal();
+      const loginTab = document.getElementById('tabLogin');
+      if (loginTab) showTab('login', loginTab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeDevModal();
+    });
+
+    /* ── Init ── */
+    window.addEventListener('load', () => {
+      AOS.init({ duration: 1400, once: false });
+
+      setTimeout(() => {
+        intro.classList.add('hide');
+        setTimeout(() => {
+          startLoginCamera();
+          loadUsers();
+        }, 420);
+      }, 2600);
+    });
+  </script>
+</body>
+</html>
