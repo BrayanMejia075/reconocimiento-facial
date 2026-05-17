@@ -1,6 +1,8 @@
 flask
 flask-cors
-gunicorn
 opencv-python-headless
+deepface
+tf-keras
+gunicorn
 numpy
 pillow
