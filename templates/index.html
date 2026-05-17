@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>FaceID — Reconocimiento Facial</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,13 +40,14 @@
       --warn: #fbbf24;
       --shadow: 0 24px 70px rgba(0, 0, 0, .42);
       --radius: 26px;
+      --radius-lg: 34px;
       --mono: 'DM Mono', monospace;
       --head: 'Inter', sans-serif;
+      --api: "https://reconocimiento-facial-jo2n.onrender.com";
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-
     body {
       min-height: 100vh;
       font-family: var(--head);
@@ -57,6 +58,8 @@
         radial-gradient(circle at 50% 100%, rgba(52, 211, 153, .06), transparent 34%),
         linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
 
     body::before {
@@ -86,7 +89,6 @@
         linear-gradient(180deg, #050816 0%, #07111f 100%);
       transition: opacity .8s ease, visibility .8s ease;
     }
-
     .intro.hide { opacity: 0; visibility: hidden; pointer-events: none; }
 
     .intro-inner {
@@ -95,6 +97,7 @@
       justify-items: center;
       gap: 16px;
       padding: 24px;
+      width: min(92vw, 420px);
     }
 
     .intro-logo {
@@ -148,6 +151,7 @@
       letter-spacing: .12em;
       text-transform: uppercase;
       font-size: .75rem;
+      line-height: 1.6;
     }
 
     .intro-bars {
@@ -201,7 +205,13 @@
       box-shadow: var(--shadow);
     }
 
-    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
     .brand-mark {
       width: 42px;
       height: 42px;
@@ -210,10 +220,25 @@
       place-items: center;
       background: linear-gradient(135deg, rgba(125, 211, 252, .16), rgba(167, 139, 250, .16));
       border: 1px solid rgba(255, 255, 255, .08);
+      flex: 0 0 auto;
     }
-    .brand-title { font-size: 1.05rem; font-weight: 800; letter-spacing: -.03em; }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      line-height: 1.1;
+    }
+
     .brand-title span { color: var(--accent); }
-    .brand-subtitle { margin-top: 2px; font-size: .76rem; color: var(--muted); font-family: var(--mono); }
+    .brand-subtitle {
+      margin-top: 2px;
+      font-size: .76rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      line-height: 1.35;
+    }
+
     .status-pill {
       display: inline-flex;
       align-items: center;
@@ -226,7 +251,9 @@
       background: rgba(255, 255, 255, .03);
       font-family: var(--mono);
       white-space: nowrap;
+      flex: 0 0 auto;
     }
+
     .dot {
       width: 8px;
       height: 8px;
@@ -235,6 +262,7 @@
       box-shadow: 0 0 12px rgba(52, 211, 153, .75);
       animation: blink 1.5s ease-in-out infinite;
     }
+
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
     .hero {
@@ -243,6 +271,7 @@
       text-align: center;
       padding: 12px 10px 0;
     }
+
     .hero-tag {
       font-family: var(--mono);
       color: var(--accent);
@@ -251,12 +280,14 @@
       font-size: .72rem;
       margin-bottom: 14px;
     }
+
     .hero h1 {
       font-size: clamp(2rem, 5vw, 3.5rem);
       line-height: 1.02;
       letter-spacing: -.05em;
       margin-bottom: 12px;
     }
+
     .hero h1 em {
       font-style: normal;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
@@ -264,6 +295,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
     .hero p {
       color: var(--muted);
       font-size: .97rem;
@@ -278,7 +310,10 @@
       justify-content: center;
       margin: 24px auto 20px;
       flex-wrap: wrap;
+      overflow-x: auto;
+      padding-bottom: 2px;
     }
+
     .tab-btn {
       border: 1px solid var(--line);
       background: rgba(255, 255, 255, .03);
@@ -289,7 +324,10 @@
       font-weight: 700;
       cursor: pointer;
       transition: .22s ease;
+      white-space: nowrap;
+      flex: 0 0 auto;
     }
+
     .tab-btn.active {
       background: linear-gradient(135deg, rgba(125, 211, 252, .18), rgba(167, 139, 250, .18));
       color: white;
@@ -306,6 +344,7 @@
       box-shadow: var(--shadow);
       overflow: hidden;
     }
+
     .card-head {
       padding: 18px 22px;
       border-bottom: 1px solid var(--line);
@@ -315,8 +354,9 @@
       gap: 12px;
       background: rgba(255, 255, 255, .02);
     }
+
     .card-head h2 { font-size: 1rem; margin-bottom: 4px; }
-    .card-head p { color: var(--muted); font-size: .84rem; font-family: var(--mono); }
+    .card-head p { color: var(--muted); font-size: .84rem; font-family: var(--mono); line-height: 1.55; }
     .card-badge {
       font-family: var(--mono);
       font-size: .72rem;
@@ -326,15 +366,17 @@
       background: rgba(125, 211, 252, .08);
       border: 1px solid rgba(125, 211, 252, .16);
       white-space: nowrap;
+      flex: 0 0 auto;
     }
+
     .card-body { padding: 22px; }
 
     .grid {
       display: grid;
       grid-template-columns: 1.08fr .92fr;
       gap: 18px;
+      align-items: start;
     }
-    @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
 
     .camera-shell {
       position: relative;
@@ -346,6 +388,7 @@
       aspect-ratio: 4 / 3;
       border: 1px solid rgba(255, 255, 255, .08);
       box-shadow: 0 18px 50px rgba(0, 0, 0, .32);
+      min-height: 240px;
     }
 
     video {
@@ -379,6 +422,7 @@
       border: 1px solid rgba(125, 211, 252, .15);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .02);
     }
+
     .scan-ring::before,
     .scan-ring::after {
       content: "";
@@ -387,6 +431,7 @@
       border-radius: 34px;
       border: 1px dashed rgba(255, 255, 255, .08);
     }
+
     .scan-ring::after { animation: spin 10s linear infinite; }
 
     .scan-line {
@@ -400,6 +445,7 @@
       animation: sweep-scan 3.2s ease-in-out infinite;
       opacity: .75;
     }
+
     @keyframes sweep-scan {
       0% { transform: translateY(0); opacity: 0; }
       15% { opacity: .85; }
@@ -435,9 +481,15 @@
       font-family: var(--mono);
       font-size: .74rem;
       color: #dbeafe;
+      line-height: 1.5;
     }
 
-    .form-side { display: flex; flex-direction: column; gap: 14px; }
+    .form-side {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
 
     .field label {
       display: block;
@@ -459,6 +511,7 @@
       color: var(--text);
       font: inherit;
     }
+
     .field input:focus {
       border-color: rgba(125, 211, 252, .35);
       box-shadow: 0 0 0 4px rgba(125, 211, 252, .08);
@@ -478,17 +531,20 @@
       gap: 8px;
       width: 100%;
     }
+
     .btn:active { transform: scale(.98); }
     .btn-primary {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: #06111f;
       box-shadow: 0 12px 30px rgba(125, 211, 252, .16);
     }
+
     .btn-secondary {
       background: rgba(255, 255, 255, .03);
       border: 1px solid var(--line);
       color: var(--text);
     }
+
     .btn:disabled { opacity: .55; cursor: wait; }
 
     .users-box {
@@ -498,6 +554,7 @@
       background: rgba(255, 255, 255, .03);
       border: 1px solid var(--line);
     }
+
     .users-title {
       font-size: .76rem;
       letter-spacing: .12em;
@@ -506,6 +563,7 @@
       font-family: var(--mono);
       margin-bottom: 10px;
     }
+
     .users-list {
       display: flex;
       flex-wrap: wrap;
@@ -513,6 +571,7 @@
       max-height: 220px;
       overflow: auto;
     }
+
     .user-item {
       display: flex;
       align-items: center;
@@ -524,7 +583,16 @@
       color: #e2e8f0;
       font-family: var(--mono);
       font-size: .76rem;
+      max-width: 100%;
     }
+
+    .user-item span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
     .user-delete {
       border: none;
       background: rgba(251, 113, 133, .12);
@@ -534,6 +602,7 @@
       border-radius: 50%;
       cursor: pointer;
       font-weight: 800;
+      flex: 0 0 auto;
     }
 
     .result-panel {
@@ -547,7 +616,9 @@
       box-shadow: var(--shadow);
       animation: reveal .35s ease both;
     }
+
     .result-panel.show { display: block; }
+
     @keyframes reveal {
       from { opacity: 0; transform: translateY(12px); }
       to { opacity: 1; transform: translateY(0); }
@@ -565,16 +636,19 @@
       text-transform: uppercase;
       margin-bottom: 12px;
     }
+
     .result-badge.success {
       background: rgba(52, 211, 153, .08);
       color: #86efac;
       border: 1px solid rgba(52, 211, 153, .16);
     }
+
     .result-badge.error {
       background: rgba(251, 113, 133, .08);
       color: #fda4af;
       border: 1px solid rgba(251, 113, 133, .16);
     }
+
     .result-badge.beta {
       background: rgba(251, 191, 36, .08);
       color: #fde68a;
@@ -621,6 +695,7 @@
       gap: 10px;
       width: min(360px, calc(100vw - 32px));
     }
+
     .toast {
       padding: 14px 16px;
       border-radius: 16px;
@@ -631,6 +706,7 @@
       font-size: .9rem;
       line-height: 1.5;
     }
+
     .toast.success { border-color: rgba(52, 211, 153, .22); }
     .toast.error { border-color: rgba(251, 113, 133, .22); }
     .toast.info { border-color: rgba(125, 211, 252, .22); }
@@ -644,16 +720,7 @@
       padding: 14px 0 2px;
     }
 
-    @media (max-width: 720px) {
-      .topbar { flex-direction: column; align-items: flex-start; }
-      .card-head { flex-direction: column; }
-    }
-
-    /* ══════════════════════════════════════════════════════════
-       MODAL PRINCIPAL — ROBOT FUERA DEL CARD, MÁS GRANDE
-       Entrada + salida animada, blur limpio, card más alto
-    ══════════════════════════════════════════════════════════ */
-
+    /* ─── MODAL PRINCIPAL ───────────────────────── */
     .dev-modal {
       position: fixed;
       inset: 0;
@@ -994,9 +1061,82 @@
       z-index: 5;
     }
 
+    @media (max-width: 920px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .wrap {
+        padding: 14px 12px 28px;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 14px 14px;
+      }
+
+      .brand {
+        width: 100%;
+      }
+
+      .status-pill {
+        align-self: flex-start;
+      }
+
+      .hero {
+        margin-top: 22px;
+        padding: 8px 6px 0;
+      }
+
+      .hero p {
+        font-size: .94rem;
+        line-height: 1.7;
+      }
+
+      .tabs {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        margin-top: 18px;
+      }
+
+      .tab-btn {
+        padding: 11px 14px;
+        font-size: .9rem;
+      }
+
+      .card-head {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px 16px;
+      }
+
+      .card-body {
+        padding: 16px;
+      }
+
+      .camera-shell {
+        min-height: 210px;
+        border-radius: 20px;
+      }
+
+      .users-list {
+        max-height: 180px;
+      }
+
+      .toast-container {
+        right: 12px;
+        left: 12px;
+        bottom: 12px;
+        width: auto;
+      }
+    }
+
     @media (max-width: 640px) {
       .dev-modal {
-        padding: 0 12px 24px;
+        padding: 0 12px 20px;
       }
 
       .dev-modal__robot {
@@ -1044,6 +1184,58 @@
 
       .dev-modal__footer {
         grid-template-columns: 1fr;
+      }
+
+      .dev-modal__text {
+        max-width: 100%;
+      }
+
+      .hero h1 {
+        font-size: clamp(1.8rem, 8vw, 2.6rem);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+
+      .brand-title {
+        font-size: 1rem;
+      }
+
+      .status-pill {
+        font-size: .72rem;
+        padding: 8px 11px;
+      }
+
+      .card-head h2 {
+        font-size: .98rem;
+      }
+
+      .card-head p {
+        font-size: .8rem;
+      }
+
+      .field input {
+        padding: 13px 14px;
+      }
+
+      .btn {
+        padding: 12px 14px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
       }
     }
   </style>
@@ -1274,6 +1466,13 @@
   </div><!-- /dev-modal -->
 
   <script>
+    /* ── Config ── */
+    const API_BASE = "https://reconocimiento-facial-jo2n.onrender.com";
+    const IS_MOBILE = window.matchMedia('(max-width: 768px)').matches;
+    const CAMERA_W = IS_MOBILE ? 640 : 960;
+    const CAMERA_H = IS_MOBILE ? 480 : 720;
+    const FRAME_DELAY = IS_MOBILE ? 180 : 110;
+
     /* ── Estado global ── */
     const intro = document.getElementById('intro');
     const panels = {
@@ -1360,8 +1559,8 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { ideal: 960 },
-            height: { ideal: 720 },
+            width: { ideal: CAMERA_W },
+            height: { ideal: CAMERA_H },
             facingMode: 'user'
           },
           audio: false
@@ -1376,8 +1575,8 @@
     }
 
     function resizeCanvas(canvas, video) {
-      const width = video.videoWidth || 960;
-      const height = video.videoHeight || 720;
+      const width = video.videoWidth || CAMERA_W;
+      const height = video.videoHeight || CAMERA_H;
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
         canvas.height = height;
@@ -1557,7 +1756,7 @@
       fd.setOptions({
         modelSelection: 0,
         selfieMode: true,
-        minDetectionConfidence: 0.72
+        minDetectionConfidence: IS_MOBILE ? 0.68 : 0.72
       });
       fd.onResults(onResults);
       return fd;
@@ -1574,11 +1773,12 @@
         });
       }
       cameraLogin = new Camera(videoLogin, {
-        width: 960, height: 720,
+        width: CAMERA_W,
+        height: CAMERA_H,
         onFrame: async () => {
           if (activeMode !== 'login' || loginBusy) return;
           const now = performance.now();
-          if (now - lastLoginFrame < 110) return;
+          if (now - lastLoginFrame < FRAME_DELAY) return;
           lastLoginFrame = now;
           loginBusy = true;
           try {
@@ -1602,11 +1802,12 @@
         });
       }
       cameraRegister = new Camera(videoRegister, {
-        width: 960, height: 720,
+        width: CAMERA_W,
+        height: CAMERA_H,
         onFrame: async () => {
           if (activeMode !== 'register' || registerBusy) return;
           const now = performance.now();
-          if (now - lastRegisterFrame < 110) return;
+          if (now - lastRegisterFrame < FRAME_DELAY) return;
           lastRegisterFrame = now;
           registerBusy = true;
           try {
@@ -1633,13 +1834,13 @@
 
     function captureFrame(videoEl) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoEl.videoWidth || 960;
-      canvas.height = videoEl.videoHeight || 720;
+      canvas.width = videoEl.videoWidth || CAMERA_W;
+      canvas.height = videoEl.videoHeight || CAMERA_H;
       const ctx = canvas.getContext('2d');
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.92);
+      return canvas.toDataURL('image/jpeg', IS_MOBILE ? 0.86 : 0.92);
     }
 
     async function capturarYRegistrar() {
@@ -1658,7 +1859,7 @@
       btn.textContent = 'Procesando...';
       const imageData = captureFrame(videoRegister);
       try {
-        const res = await fetch('/register', {
+        const res = await fetch(`${API_BASE}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, image: imageData })
@@ -1693,12 +1894,12 @@
       loginStatus.textContent = 'Analizando biometría facial...';
       showToast('Escaneando rostro...', 'info');
 
-      await new Promise(r => setTimeout(r, 1300));
+      await new Promise(r => setTimeout(r, IS_MOBILE ? 1000 : 1300));
 
       const imageData = captureFrame(videoLogin);
 
       try {
-        const res = await fetch('/login', {
+        const res = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: imageData })
@@ -1731,7 +1932,7 @@
 
     async function loadUsers() {
       try {
-        const res = await fetch('/users');
+        const res = await fetch(`${API_BASE}/users`);
         const data = await res.json();
         const list = document.getElementById('usersList');
         if (!data.users || data.users.length === 0) {
@@ -1750,7 +1951,7 @@
 
     async function deleteUser(name) {
       try {
-        const res = await fetch('/delete-user', {
+        const res = await fetch(`${API_BASE}/delete-user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name })
@@ -1765,7 +1966,7 @@
 
     async function clearUsers() {
       try {
-        const res = await fetch('/clear-users', { method: 'POST' });
+        const res = await fetch(`${API_BASE}/clear-users`, { method: 'POST' });
         const data = await res.json();
         showToast(data.message, data.success ? 'success' : 'error');
         loadUsers();
@@ -1820,6 +2021,17 @@
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeDevModal();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopMode('login');
+        stopMode('register');
+      } else {
+        const activePanel = document.querySelector('.panel.active');
+        if (activePanel?.id === 'panel-login') startLoginCamera();
+        if (activePanel?.id === 'panel-register') startRegisterCamera();
+      }
     });
 
     /* ── Init ── */
