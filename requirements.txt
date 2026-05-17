@@ -10,3 +10,4 @@ tensorflow-cpu==2.15.0
 tf-keras==2.15.1
 deepface==0.0.93
 PyGithub==2.3.0
+requests==2.34.2
